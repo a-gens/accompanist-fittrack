@@ -1,0 +1,822 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="FitTrack">
+<meta name="theme-color" content="#0a0a0a">
+<title>FitTrack — Your Weight Loss Tracker</title>
+
+<!-- PWA Manifest (inline via data URI) -->
+<link rel="manifest" href="data:application/json;base64,eyJuYW1lIjoiRml0VHJhY2sgLSBXZWlnaHQgTG9zcyBUcmFja2VyIiwic2hvcnRfbmFtZSI6IkZpdFRyYWNrIiwic3RhcnRfdXJsIjoiLiIsImRpc3BsYXkiOiJzdGFuZGFsb25lIiwiYmFja2dyb3VuZF9jb2xvciI6IiMwYTBhMGEiLCJ0aGVtZV9jb2xvciI6IiMwYTBhMGEifQ==">
+
+<!-- Apple Touch Icon (inline SVG as data URI) -->
+<link rel="apple-touch-icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxODAgMTgwIj48cmVjdCB3aWR0aD0iMTgwIiBoZWlnaHQ9IjE4MCIgcng9IjQwIiBmaWxsPSIjMGExNTEyIi8+PHRleHQgeD0iOTAiIHk9IjEwNSIgZm9udC1zaXplPSI4MCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0iIzY0ZmZkYSI+8J+So/Cfkqo8L3RleHQ+PC9zdmc+">
+
+<style>
+  *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+
+  :root {
+    --bg: #0a0a0a; --card: #111111; --card-border: #ffffff08;
+    --text: #e8e4df; --text2: #999; --text3: #555; --text4: #333;
+    --accent: #64ffda; --accent-dim: #64ffda20; --accent-border: #64ffda40;
+    --red: #ff6b6b; --yellow: #ffd93d; --purple: #a78bfa; --blue: #60a5fa;
+    --green: #66bb6a; --orange: #ffa726;
+    --safe-b: env(safe-area-inset-bottom, 0px);
+    --font: 'SF Pro Display', 'SF Pro Text', -apple-system, system-ui, sans-serif;
+  }
+
+  html { height: -webkit-fill-available; }
+  body {
+    font-family: var(--font); background: var(--bg); color: var(--text);
+    line-height: 1.5; min-height: 100vh; min-height: -webkit-fill-available;
+    overflow-x: hidden; -webkit-font-smoothing: antialiased;
+  }
+
+  /* ── layout ── */
+  #app { max-width: 480px; margin: 0 auto; padding-bottom: calc(72px + var(--safe-b)); }
+  .header {
+    padding: 16px 20px 12px;
+    padding-top: calc(16px + env(safe-area-inset-top, 0px));
+    background: linear-gradient(180deg, #111 0%, var(--bg) 100%);
+    position: sticky; top: 0; z-index: 50;
+  }
+  .header-date { font-size: 11px; color: var(--text3); letter-spacing: 2px; text-transform: uppercase; }
+  .header-title { font-size: 22px; font-weight: 700; color: #fff; letter-spacing: -0.3px; margin-top: 2px; }
+
+  .content { padding: 0 16px; }
+
+  /* ── bottom nav ── */
+  .nav {
+    position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
+    width: 100%; max-width: 480px;
+    background: rgba(17,17,17,0.92); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+    border-top: 1px solid var(--card-border);
+    display: flex; justify-content: space-around;
+    padding: 6px 0; padding-bottom: calc(8px + var(--safe-b));
+    z-index: 100;
+  }
+  .nav-item { text-align: center; cursor: pointer; padding: 4px 10px; flex: 1; }
+  .nav-icon { font-size: 20px; transition: 0.15s; }
+  .nav-label { font-size: 9px; margin-top: 1px; letter-spacing: 0.5px; transition: 0.15s; }
+  .nav-item.active .nav-icon { filter: none; opacity: 1; }
+  .nav-item:not(.active) .nav-icon { filter: grayscale(1); opacity: 0.35; }
+  .nav-item.active .nav-label { color: var(--accent); font-weight: 600; }
+  .nav-item:not(.active) .nav-label { color: var(--text3); }
+
+  /* ── card ── */
+  .card { background: var(--card); border: 1px solid var(--card-border); border-radius: 14px; padding: 16px; margin-bottom: 12px; }
+
+  /* ── buttons ── */
+  .btn {
+    font-family: var(--font); font-weight: 600; border-radius: 8px; cursor: pointer;
+    border: 1px solid var(--card-border); background: #1a1a1a; color: #aaa;
+    padding: 8px 16px; font-size: 13px; transition: 0.15s; display: inline-flex; align-items: center; justify-content: center;
+  }
+  .btn:active { transform: scale(0.96); }
+  .btn.accent { background: var(--accent-dim); color: var(--accent); border-color: var(--accent-border); }
+  .btn.sm { padding: 5px 10px; font-size: 12px; }
+  .btn.full { width: 100%; }
+  .btn.danger { color: var(--red); border-color: #ff6b6b30; }
+
+  /* ── inputs ── */
+  .input {
+    width: 100%; background: #0a0a0a; border: 1px solid #ffffff10; border-radius: 8px;
+    padding: 10px 12px; color: #fff; font-size: 15px; font-family: var(--font); outline: none;
+    -webkit-appearance: none;
+  }
+  .input:focus { border-color: var(--accent-border); }
+  .input::placeholder { color: #444; }
+
+  /* ── progress bar ── */
+  .pbar { width: 100%; height: 6px; background: #1a1a1a; border-radius: 3px; overflow: hidden; }
+  .pbar-fill { height: 100%; border-radius: 3px; transition: width 0.5s ease; }
+
+  /* ── rings grid ── */
+  .rings { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+
+  /* ── meal item ── */
+  .meal-item {
+    background: var(--card); border: 1px solid var(--card-border); border-radius: 10px;
+    padding: 12px 14px; margin-bottom: 8px; cursor: pointer;
+    display: flex; justify-content: space-between; align-items: center; transition: 0.15s;
+  }
+  .meal-item.logged { background: #64ffda08; border-color: #64ffda25; }
+  .meal-item:active { transform: scale(0.98); }
+
+  /* ── exercise item ── */
+  .ex-item {
+    background: var(--card); border: 1px solid var(--card-border); border-radius: 10px;
+    padding: 14px 16px; margin-bottom: 8px; cursor: pointer;
+    display: flex; justify-content: space-between; align-items: center; transition: 0.15s;
+  }
+  .ex-item.done { background: #64ffda06; border-color: #64ffda15; opacity: 0.55; }
+  .ex-item:active { transform: scale(0.98); }
+
+  /* ── checkbox ── */
+  .check {
+    width: 22px; height: 22px; border-radius: 6px; border: 2px solid var(--text4);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; color: var(--accent); flex-shrink: 0; transition: 0.15s;
+  }
+  .check.on { border-color: var(--accent); }
+
+  /* ── info boxes ── */
+  .info-box { border-radius: 10px; padding: 11px 14px; font-size: 12px; margin-top: 12px; line-height: 1.5; }
+  .info-box.tip { background: #1a1812; color: #d4c8a0; }
+  .info-box.ok { background: #121a18; color: #a0d4c4; }
+  .info-box.warn { background: #1a1510; border-left: 3px solid var(--yellow); color: #d4c8a0; }
+
+  /* ── tab content ── */
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  /* ── workout selector ── */
+  .wo-sel { display: flex; gap: 8px; margin-bottom: 16px; }
+  .wo-btn {
+    flex: 1; padding: 12px 8px; border-radius: 10px; text-align: center; cursor: pointer;
+    background: var(--card); border: 1px solid var(--card-border); transition: 0.15s;
+  }
+  .wo-btn.active { background: var(--accent-dim); border-color: var(--accent-border); }
+  .wo-btn:active { transform: scale(0.96); }
+
+  /* ── section label ── */
+  .slabel { font-size: 12px; font-weight: 600; color: var(--accent); text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 10px; }
+
+  /* ── weight history ── */
+  .wh-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #ffffff06; font-size: 13px; }
+
+  /* ── schedule grid ── */
+  .sched { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-top: 10px; }
+  .sched-cell {
+    background: var(--card); border-radius: 8px; padding: 8px 4px; text-align: center; font-size: 10px;
+    border-bottom: 2px solid transparent;
+  }
+  .sched-cell .sday { color: #555; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; font-size: 9px; }
+  .sched-cell .sicon { font-size: 16px; margin-bottom: 2px; }
+  .sched-cell .sinfo { color: #666; font-size: 8px; line-height: 1.2; }
+
+  /* animations */
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+  .fade-in { animation: fadeIn 0.3s ease; }
+
+  /* prevent overscroll */
+  html { overscroll-behavior: none; }
+</style>
+</head>
+<body>
+
+<div id="app"></div>
+
+<script>
+// ══════════════════════════════════════════════════════════
+// DATA & CONSTANTS
+// ══════════════════════════════════════════════════════════
+
+const TARGETS = { cal: 1400, protein: 105, water: 8, steps: 7000 };
+const START_WEIGHT = 66;
+const GOAL_WEIGHT = 59;
+
+const MEALS = {
+  lunch: [
+    { name:"Grilled chicken + rice + salad", cal:500, protein:38, icon:"🍗" },
+    { name:"Eggs + lentils + veggies + bread", cal:480, protein:30, icon:"🥚" },
+    { name:"Salmon + sweet potato + broccoli", cal:520, protein:36, icon:"🐟" },
+    { name:"Tuna Greek salad + chickpeas", cal:490, protein:34, icon:"🥗" },
+    { name:"Turkey wrap + hummus + veggies", cal:470, protein:32, icon:"🌯" },
+  ],
+  snack: [
+    { name:"Greek yogurt + almonds", cal:240, protein:24, icon:"🥛" },
+    { name:"Protein shake + banana", cal:260, protein:28, icon:"🥤" },
+    { name:"2 boiled eggs + apple", cal:230, protein:14, icon:"🥚" },
+    { name:"Cottage cheese + berries", cal:220, protein:22, icon:"🫐" },
+  ],
+  dinner: [
+    { name:"Beef stir-fry + veggies + rice", cal:540, protein:40, icon:"🥩" },
+    { name:"White fish + roast veg + quinoa", cal:500, protein:38, icon:"🐟" },
+    { name:"Turkey lettuce wraps + avocado", cal:480, protein:42, icon:"🥬" },
+    { name:"Chicken thigh + roast cauliflower", cal:520, protein:40, icon:"🍗" },
+    { name:"Shrimp + zucchini noodles", cal:420, protein:36, icon:"🦐" },
+  ]
+};
+
+const WORKOUTS = {
+  A: { title:"Day A — Lower Body", burn:250, exercises:[
+    {name:"Goblet/Barbell Squats",sets:"3 × 10-12"},{name:"Romanian Deadlifts",sets:"3 × 10-12"},
+    {name:"Walking Lunges",sets:"3 × 12/leg"},{name:"Hip Thrusts",sets:"3 × 12-15"},
+    {name:"Push-ups",sets:"3 × 8-12"},{name:"Plank Hold",sets:"3 × 30-45s"}
+  ]},
+  B: { title:"Day B — Upper Body", burn:220, exercises:[
+    {name:"DB Bench Press",sets:"3 × 10-12"},{name:"Single-Arm DB Rows",sets:"3 × 10-12/arm"},
+    {name:"Overhead Press",sets:"3 × 10-12"},{name:"Lat Pulldown",sets:"3 × 10-12"},
+    {name:"Bicep Curls",sets:"2 × 12-15"},{name:"Tricep Dips",sets:"2 × 12-15"},
+    {name:"Dead Bug (core)",sets:"3 × 10/side"}
+  ]},
+  C: { title:"Day C — Full Body + HIIT", burn:300, exercises:[
+    {name:"Deadlifts",sets:"3 × 10"},{name:"Bulgarian Split Squats",sets:"3 × 10/leg"},
+    {name:"Incline Push-ups",sets:"3 × 10-12"},{name:"Face Pulls",sets:"3 × 15"},
+    {name:"Russian Twists",sets:"3 × 15/side"},{name:"HIIT: 30s sprint / 30s walk",sets:"10 min"}
+  ]}
+};
+
+// ══════════════════════════════════════════════════════════
+// STORAGE (localStorage — persists permanently on device)
+// ══════════════════════════════════════════════════════════
+
+function todayStr() { return new Date().toISOString().slice(0, 10); }
+function dayOfWeek(d) { return ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][new Date(d+"T12:00:00").getDay()]; }
+function clamp(v, lo, hi) { return Math.min(hi, Math.max(lo, v)); }
+
+function loadJSON(key, fallback) {
+  try { const v = localStorage.getItem("ft_" + key); return v ? JSON.parse(v) : fallback; }
+  catch { return fallback; }
+}
+function saveJSON(key, value) {
+  try { localStorage.setItem("ft_" + key, JSON.stringify(value)); } catch(e) { console.error(e); }
+}
+
+// per-day data
+function loadDay(date) {
+  return loadJSON("day_" + date, { meals:[], workout:null, completedEx:[], water:0, steps:0, notes:"" });
+}
+function saveDay(date, data) { saveJSON("day_" + date, data); }
+
+// weight log
+function loadWeightLog() { return loadJSON("weightLog", []); }
+function saveWeightLog(log) { saveJSON("weightLog", log); }
+
+// fasting
+function loadFast() { return loadJSON("fastStart", null); }
+function saveFast(v) { saveJSON("fastStart", v); }
+
+// history (which days have data)
+function loadHistory() { return loadJSON("history", []); }
+function saveHistory(h) { saveJSON("history", h); }
+function markToday() {
+  const h = loadHistory();
+  const t = todayStr();
+  if (!h.includes(t)) { h.push(t); saveHistory(h); }
+}
+
+// ══════════════════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════════════════
+
+let state = {
+  tab: "home",
+  date: todayStr(),
+  day: loadDay(todayStr()),
+  weightLog: loadWeightLog(),
+  fastStart: loadFast(),
+  customMealOpen: false,
+  weightInput: "",
+  customName: "", customCal: "", customPro: "",
+};
+
+function updateDay(fn) {
+  state.day = fn(state.day);
+  saveDay(state.date, state.day);
+  markToday();
+  render();
+}
+
+// ══════════════════════════════════════════════════════════
+// SVG RING HELPER
+// ══════════════════════════════════════════════════════════
+
+function svgRing(pct, color, size, stroke) {
+  const r = (size - stroke) / 2;
+  const circ = 2 * Math.PI * r;
+  const dash = (clamp(pct, 0, 100) / 100) * circ;
+  return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
+    <circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="#1a1a1a" stroke-width="${stroke}"/>
+    <circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="${color}" stroke-width="${stroke}"
+      stroke-dasharray="${dash} ${circ}" stroke-linecap="round"
+      transform="rotate(-90 ${size/2} ${size/2})" style="transition:stroke-dasharray 0.5s"/>
+  </svg>`;
+}
+
+// ══════════════════════════════════════════════════════════
+// RENDER
+// ══════════════════════════════════════════════════════════
+
+function render() {
+  const d = state.day;
+  const totalCal = d.meals.reduce((s,m) => s + m.cal, 0);
+  const totalPro = d.meals.reduce((s,m) => s + m.protein, 0);
+  const calPct = clamp(totalCal / TARGETS.cal * 100, 0, 100);
+  const proPct = clamp(totalPro / TARGETS.protein * 100, 0, 100);
+  const waterPct = clamp((d.water || 0) / TARGETS.water * 100, 0, 100);
+  const stepsPct = clamp((d.steps || 0) / TARGETS.steps * 100, 0, 100);
+
+  const now = Date.now();
+  const fastElapsed = state.fastStart ? (now - state.fastStart) / 3600000 : 0;
+  const fastPct = state.fastStart ? clamp(fastElapsed / 16 * 100, 0, 100) : 0;
+  const fastRemaining = state.fastStart ? Math.max(0, 16 - fastElapsed) : 0;
+  const fastDone = fastPct >= 100;
+
+  const dateObj = new Date();
+  const dateStr = dateObj.toLocaleDateString("en-US", { weekday:"long", month:"short", day:"numeric" });
+
+  const titles = { home:"Today's Overview", meals:"Meal Tracker", gym:"Workout", fast:"Fasting Timer", progress:"Progress", plan:"Weekly Plan" };
+
+  // ── build HTML ──
+  let html = `
+    <div class="header">
+      <div class="header-date">${dateStr}</div>
+      <div class="header-title">${titles[state.tab]}</div>
+    </div>
+    <div class="content">
+  `;
+
+  // ════ HOME ════
+  html += `<div class="tab-content ${state.tab==='home'?'active':''} fade-in">`;
+
+  // rings
+  html += `<div class="rings">`;
+  html += ringCard("Calories", totalCal, TARGETS.cal, "kcal", "var(--accent)", calPct);
+  html += ringCard("Protein", totalPro, TARGETS.protein, "g", "var(--purple)", proPct);
+  html += ringCard("Water", d.water||0, TARGETS.water, "cups", "var(--blue)", waterPct);
+  html += `</div>`;
+
+  // water
+  html += `<div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <span style="font-size:14px;color:var(--text2)">💧 Water (${d.water||0}/${TARGETS.water} cups)</span>
+      <div style="display:flex;gap:8px">
+        <button class="btn sm" onclick="updateDay(d=>({...d,water:Math.max(0,(d.water||0)-1)}))">−</button>
+        <button class="btn sm accent" onclick="updateDay(d=>({...d,water:(d.water||0)+1}))">+1</button>
+      </div>
+    </div>
+  </div>`;
+
+  // fasting mini
+  html += `<div class="card" onclick="switchTab('fast')" style="cursor:pointer">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <div>
+        <div style="font-size:13px;color:var(--text2)">⏱️ Fasting</div>
+        <div style="font-size:18px;font-weight:600;color:${state.fastStart ? 'var(--accent)' : 'var(--text3)'};margin-top:2px">
+          ${state.fastStart ? (fastDone ? '✅ Complete!' : Math.floor(fastRemaining)+'h '+Math.floor((fastRemaining%1)*60)+'m left') : 'Not started'}
+        </div>
+      </div>
+      <span style="color:var(--text3);font-size:20px">›</span>
+    </div>
+  </div>`;
+
+  // meals summary
+  html += `<div class="card">
+    <div style="font-size:13px;color:var(--text2);margin-bottom:8px">🍽️ Meals logged today</div>`;
+  if (d.meals.length === 0) {
+    html += `<div style="color:var(--text4);font-size:13px">No meals yet. Tap Meals tab to log.</div>`;
+  } else {
+    d.meals.forEach((m, i) => {
+      html += `<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;${i<d.meals.length-1?'border-bottom:1px solid #ffffff06':''}">
+        <div style="display:flex;gap:8px;align-items:center"><span>${m.icon}</span><span style="font-size:13px;color:#ccc">${m.name}</span></div>
+        <span style="font-size:12px;color:#666">${m.cal} kcal</span>
+      </div>`;
+    });
+  }
+  html += `</div>`;
+
+  // workout mini
+  html += `<div class="card" onclick="switchTab('gym')" style="cursor:pointer">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <div>
+        <div style="font-size:13px;color:var(--text2)">💪 Workout</div>`;
+  if (d.workout) {
+    const wo = WORKOUTS[d.workout];
+    html += `<div style="font-size:15px;font-weight:600;color:var(--accent);margin-top:2px">${wo.title}</div>
+      <div style="font-size:12px;color:#555;margin-top:2px">${(d.completedEx||[]).length}/${wo.exercises.length} exercises done</div>`;
+  } else {
+    html += `<div style="color:var(--text4);font-size:13px;margin-top:2px">No workout selected</div>`;
+  }
+  html += `</div><span style="color:var(--text3);font-size:20px">›</span></div></div>`;
+
+  // steps
+  html += `<div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <div><div style="font-size:13px;color:var(--text2)">👣 Steps</div>
+        <div style="font-size:22px;font-weight:700;color:#fff">${(d.steps||0).toLocaleString()}</div></div>
+      <div style="display:flex;gap:6px">
+        ${[1000,2000,5000].map(n => `<button class="btn sm" onclick="updateDay(d=>({...d,steps:(d.steps||0)+${n}}))">+${n/1000}k</button>`).join('')}
+      </div>
+    </div>
+    <div style="margin-top:8px"><div class="pbar"><div class="pbar-fill" style="width:${stepsPct}%;background:var(--yellow)"></div></div>
+      <div style="font-size:10px;color:var(--text3);margin-top:4px">Goal: 7,000 steps</div></div>
+  </div>`;
+
+  html += `</div>`; // end home
+
+  // ════ MEALS ════
+  html += `<div class="tab-content ${state.tab==='meals'?'active':''} fade-in">`;
+
+  // summary
+  html += `<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+    <div style="background:var(--card);border-radius:12px;padding:14px;text-align:center">
+      <div style="font-size:28px;font-weight:700;color:${totalCal>TARGETS.cal?'var(--red)':'var(--accent)'}">${totalCal}</div>
+      <div style="font-size:10px;color:#555;text-transform:uppercase;letter-spacing:1px">${TARGETS.cal-totalCal>0?TARGETS.cal-totalCal+' remaining':'Over target!'}</div>
+    </div>
+    <div style="background:var(--card);border-radius:12px;padding:14px;text-align:center">
+      <div style="font-size:28px;font-weight:700;color:${totalPro>=TARGETS.protein?'var(--accent)':'var(--purple)'}">${totalPro}g</div>
+      <div style="font-size:10px;color:#555;text-transform:uppercase;letter-spacing:1px">${TARGETS.protein-totalPro>0?TARGETS.protein-totalPro+'g to go':'Protein hit! ✅'}</div>
+    </div>
+  </div>`;
+
+  html += `<div class="info-box tip" style="margin-top:0;margin-bottom:14px">🕐 Eating window: 12:00 PM – 8:00 PM</div>`;
+
+  // meal sections
+  const mealSections = [
+    { key:"lunch", label:"🍽️ Lunch (12:00 PM) · ~500 kcal" },
+    { key:"snack", label:"🥛 Snack (3:30 PM) · ~250 kcal" },
+    { key:"dinner", label:"🍽️ Dinner (7:00 PM) · ~550 kcal" },
+  ];
+  mealSections.forEach(sec => {
+    html += `<div class="slabel">${sec.label}</div>`;
+    MEALS[sec.key].forEach((meal, i) => {
+      const logged = d.meals.some(m => m.name === meal.name);
+      html += `<div class="meal-item ${logged?'logged':''}" onclick="toggleMeal('${sec.key}',${i})">
+        <div style="display:flex;gap:10px;align-items:center">
+          <span style="font-size:20px">${meal.icon}</span>
+          <div><div style="font-size:13px;color:${logged?'var(--accent)':'#ddd'};font-weight:${logged?600:400}">${meal.name}</div>
+            <div style="font-size:11px;color:#555;margin-top:2px">${meal.cal} kcal · ${meal.protein}g protein</div></div>
+        </div>
+        <div class="check ${logged?'on':''}">${logged?'✓':''}</div>
+      </div>`;
+    });
+    html += `<div style="height:8px"></div>`;
+  });
+
+  // custom meal
+  if (!state.customMealOpen) {
+    html += `<button class="btn accent full" style="margin-top:4px" onclick="state.customMealOpen=true;render()">+ Add Custom Meal</button>`;
+  } else {
+    html += `<div class="card" style="border-color:var(--accent-border)">
+      <div style="font-size:13px;font-weight:600;color:var(--accent);margin-bottom:10px">Add Custom Meal</div>
+      <input class="input" placeholder="Meal name" id="cname" value="${state.customName}" oninput="state.customName=this.value" style="margin-bottom:8px">
+      <div style="display:flex;gap:8px">
+        <input class="input" type="number" placeholder="Calories" id="ccal" value="${state.customCal}" oninput="state.customCal=this.value">
+        <input class="input" type="number" placeholder="Protein (g)" id="cpro" value="${state.customPro}" oninput="state.customPro=this.value">
+      </div>
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <button class="btn" style="flex:1" onclick="state.customMealOpen=false;state.customName='';state.customCal='';state.customPro='';render()">Cancel</button>
+        <button class="btn accent" style="flex:1" onclick="addCustomMeal()">Add Meal</button>
+      </div>
+    </div>`;
+  }
+
+  html += `</div>`; // end meals
+
+  // ════ GYM ════
+  html += `<div class="tab-content ${state.tab==='gym'?'active':''} fade-in">`;
+
+  html += `<div class="wo-sel">`;
+  ["A","B","C"].forEach(w => {
+    html += `<div class="wo-btn ${d.workout===w?'active':''}" onclick="selectWorkout('${w}')">
+      <div style="font-size:16px;font-weight:700;color:${d.workout===w?'var(--accent)':'var(--text3)'}">Day ${w}</div>
+      <div style="font-size:9px;color:#555;margin-top:2px">${w==='A'?'Lower':w==='B'?'Upper':'Full+HIIT'}</div>
+    </div>`;
+  });
+  html += `</div>`;
+
+  if (d.workout) {
+    const wo = WORKOUTS[d.workout];
+    html += `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <div style="font-size:16px;font-weight:600;color:#fff">${wo.title}</div>
+      <div style="font-size:12px;color:var(--red)">🔥 ~${wo.burn} kcal</div>
+    </div>`;
+
+    wo.exercises.forEach((ex, i) => {
+      const done = (d.completedEx||[]).includes(i);
+      html += `<div class="ex-item ${done?'done':''}" onclick="toggleExercise(${i})">
+        <div><div style="font-size:14px;color:${done?'var(--accent)':'#ddd'};text-decoration:${done?'line-through':'none'};font-weight:500">${ex.name}</div>
+          <div style="font-size:12px;color:#444;margin-top:2px">${ex.sets}</div></div>
+        <div class="check ${done?'on':''}">${done?'✓':''}</div>
+      </div>`;
+    });
+
+    const exPct = (d.completedEx||[]).length / wo.exercises.length * 100;
+    html += `<div style="margin-top:12px"><div class="pbar"><div class="pbar-fill" style="width:${exPct}%;background:var(--accent)"></div></div>
+      <div style="font-size:11px;color:var(--text3);margin-top:6px;text-align:center">${(d.completedEx||[]).length} / ${wo.exercises.length} exercises${exPct>=100?' — 🎉 Workout complete!':''}</div></div>`;
+  } else {
+    html += `<div style="text-align:center;padding:40px;color:var(--text4)"><div style="font-size:40px;margin-bottom:12px">🏋️</div><div style="font-size:14px">Pick a workout above</div></div>`;
+  }
+
+  html += `<div class="info-box tip">💡 <strong>Tip:</strong> Rest 60–90s between sets. Start moderate — increase weight ~5% every 1–2 weeks.</div>`;
+  html += `</div>`; // end gym
+
+  // ════ FASTING ════
+  html += `<div class="tab-content ${state.tab==='fast'?'active':''} fade-in">`;
+  html += `<div style="text-align:center;padding:20px 0">`;
+
+  // big ring
+  html += `<div style="position:relative;width:200px;height:200px;margin:0 auto">`;
+  html += svgRing(fastPct, fastDone ? 'var(--accent)' : '#64ffda80', 200, 10);
+  html += `<div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center">`;
+  if (state.fastStart) {
+    if (fastDone) {
+      html += `<div style="font-size:32px;margin-bottom:4px">🎉</div><div style="font-size:18px;font-weight:700;color:var(--accent)">Complete!</div><div style="font-size:11px;color:#555">16h fasting done</div>`;
+    } else {
+      html += `<div style="font-size:36px;font-weight:700;color:#fff;font-variant-numeric:tabular-nums">${Math.floor(fastRemaining)}:${String(Math.floor((fastRemaining%1)*60)).padStart(2,'0')}</div>
+        <div style="font-size:11px;color:#666;margin-top:4px">hours remaining</div>
+        <div style="font-size:12px;color:var(--accent);margin-top:8px">${Math.floor(fastElapsed*60)} min elapsed</div>`;
+    }
+  } else {
+    html += `<div style="font-size:32px;margin-bottom:4px">⏱️</div><div style="font-size:14px;color:#555">Ready to fast</div>`;
+  }
+  html += `</div></div>`;
+
+  // fast buttons
+  html += `<div style="margin-top:24px;display:flex;gap:10px;justify-content:center">`;
+  if (!state.fastStart) {
+    html += `<button class="btn accent" onclick="startFast()">Start 16h Fast</button>`;
+  } else {
+    html += `<button class="btn" onclick="resetFast()">Reset Fast</button>`;
+  }
+  html += `</div>`;
+
+  if (state.fastStart) {
+    const startTime = new Date(state.fastStart).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+    const endTime = new Date(state.fastStart + 16*3600000).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+    html += `<div style="margin-top:16px;font-size:12px;color:#555">Started: ${startTime} → Ends: ${endTime}</div>`;
+  }
+  html += `</div>`;
+
+  // phases
+  html += `<div class="card"><div style="font-size:13px;font-weight:600;color:#fff;margin-bottom:10px">Fasting Phases</div>`;
+  [{h:"0-4h",name:"Fed → Fasting",desc:"Body digesting last meal",icon:"🍽️",start:0},
+   {h:"4-8h",name:"Early Fasting",desc:"Insulin drops, fat burning begins",icon:"📉",start:4},
+   {h:"8-12h",name:"Fat Burning",desc:"Glycogen depleting, using fat stores",icon:"🔥",start:8},
+   {h:"12-16h",name:"Deep Ketosis",desc:"Peak fat oxidation, autophagy begins",icon:"⚡",start:12}
+  ].forEach((p,i) => {
+    const active = state.fastStart && fastElapsed >= p.start;
+    html += `<div style="display:flex;gap:10px;align-items:center;padding:8px 0;${i<3?'border-bottom:1px solid #ffffff06':''};opacity:${active?1:0.3}">
+      <span style="font-size:18px">${p.icon}</span>
+      <div><div style="font-size:13px;color:#ddd;font-weight:500">${p.h} — ${p.name}</div><div style="font-size:11px;color:#555">${p.desc}</div></div>
+    </div>`;
+  });
+  html += `</div>`;
+
+  html += `<div class="info-box ok">✅ During fasting: water, black coffee, green tea, herbal tea. No sugar, no milk.</div>`;
+  html += `</div>`; // end fast
+
+  // ════ PROGRESS ════
+  html += `<div class="tab-content ${state.tab==='progress'?'active':''} fade-in">`;
+
+  const wl = state.weightLog;
+  const currentW = wl.length > 0 ? wl[wl.length-1].weight : START_WEIGHT;
+  const lost = START_WEIGHT - currentW;
+  const goalPct = clamp(lost / (START_WEIGHT - GOAL_WEIGHT) * 100, 0, 100);
+
+  html += `<div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      <div style="font-size:13px;color:var(--text2)">Goal: ${START_WEIGHT} → ${GOAL_WEIGHT} kg</div>
+      <div style="font-size:14px;font-weight:700;color:var(--accent)">${currentW} kg</div>
+    </div>
+    <div class="pbar"><div class="pbar-fill" style="width:${goalPct}%;background:var(--accent)"></div></div>
+    <div style="display:flex;justify-content:space-between;margin-top:8px;font-size:11px;color:var(--text3)">
+      <span>${lost>0?lost.toFixed(1)+' kg lost':'Starting'}</span>
+      <span>${Math.max(0,currentW-GOAL_WEIGHT).toFixed(1)} kg to go</span>
+    </div>
+  </div>`;
+
+  // log weight
+  html += `<div class="card">
+    <div style="font-size:13px;color:var(--text2);margin-bottom:8px">⚖️ Log today's weight</div>
+    <div style="display:flex;gap:8px">
+      <input class="input" type="number" step="0.1" placeholder="e.g. 65.4" id="weightInput" value="${state.weightInput}" oninput="state.weightInput=this.value">
+      <button class="btn accent" onclick="addWeight()">Log</button>
+    </div>
+    <div style="font-size:10px;color:var(--text3);margin-top:6px">Weigh once per week, same morning, before eating.</div>
+  </div>`;
+
+  // chart
+  if (wl.length > 1) {
+    html += `<div class="card"><div style="font-size:13px;color:var(--text2);margin-bottom:12px">📉 Weight Trend</div>`;
+    const cW = 320, cH = 120;
+    const allW = wl.map(w=>w.weight);
+    const minW = Math.min(GOAL_WEIGHT-1, ...allW);
+    const maxW = Math.max(START_WEIGHT+1, ...allW);
+    const rng = maxW - minW || 1;
+    const goalY = cH - ((GOAL_WEIGHT - minW) / rng) * cH;
+    let pts = wl.map((w,i) => {
+      const x = 24 + (i / Math.max(1, wl.length-1)) * (cW - 48);
+      const y = cH - ((w.weight - minW) / rng) * cH;
+      return { x, y, w: w.weight, d: w.date };
+    });
+
+    html += `<svg width="${cW}" height="${cH+24}" style="display:block;width:100%;max-width:${cW}px">`;
+    html += `<line x1="0" y1="${goalY}" x2="${cW}" y2="${goalY}" stroke="#64ffda25" stroke-dasharray="4,4"/>`;
+    html += `<text x="4" y="${goalY-4}" fill="#64ffda40" font-size="8">${GOAL_WEIGHT}kg</text>`;
+    html += `<polyline fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" points="${pts.map(p=>`${p.x},${p.y}`).join(' ')}"/>`;
+    pts.forEach(p => {
+      html += `<circle cx="${p.x}" cy="${p.y}" r="3.5" fill="var(--accent)"/>`;
+      html += `<text x="${p.x}" y="${p.y-7}" text-anchor="middle" fill="#888" font-size="8">${p.w}</text>`;
+      html += `<text x="${p.x}" y="${cH+14}" text-anchor="middle" fill="#444" font-size="7">${p.d.slice(5)}</text>`;
+    });
+    html += `</svg></div>`;
+  }
+
+  // history
+  html += `<div class="card"><div style="font-size:13px;color:var(--text2);margin-bottom:8px">📋 Weight History</div>`;
+  if (wl.length === 0) {
+    html += `<div style="color:var(--text4);font-size:13px">No entries yet.</div>`;
+  } else {
+    [...wl].reverse().forEach(w => {
+      html += `<div class="wh-row"><span style="color:var(--text2)">${dayOfWeek(w.date)} ${w.date}</span><span style="color:#fff;font-weight:600">${w.weight} kg</span></div>`;
+    });
+  }
+  html += `</div>`;
+
+  if (wl.length > 0) {
+    html += `<button class="btn danger full" onclick="resetAllData()">Reset All Data</button>`;
+  }
+
+  html += `</div>`; // end progress
+
+  // ════ PLAN ════
+  html += `<div class="tab-content ${state.tab==='plan'?'active':''} fade-in">`;
+  html += `<div class="card"><div style="font-size:14px;font-weight:600;color:#fff;margin-bottom:8px">Week A — Coworking 2 Days</div>`;
+  html += scheduleGrid(["🏋️","🏢","🏋️","🏢","🏋️","🚶‍♀️","😴"], ["Gym A","Cowork","Gym B","Cowork","Gym C","Active Rest","Rest"],
+    ["gym","office","gym","office","gym","rest","rest"]);
+  html += `</div>`;
+
+  html += `<div class="card"><div style="font-size:14px;font-weight:600;color:#fff;margin-bottom:8px">Week B — Coworking 3 Days</div>`;
+  html += scheduleGrid(["🏢","🏋️","🏢","🏋️","🏢","🏋️","😴"], ["Cowork","Gym A","Cowork","Gym B","Cowork","Gym C","Rest"],
+    ["office","gym","office","gym","office","gym","rest"]);
+  html += `</div>`;
+
+  html += `<div class="card">
+    <div style="font-size:14px;font-weight:600;color:#fff;margin-bottom:10px">📊 Daily Targets</div>
+    <div style="font-size:13px;color:var(--text2);line-height:2">
+      🎯 Calories: <strong style="color:var(--accent)">1,400 kcal</strong><br>
+      🥩 Protein: <strong style="color:var(--purple)">105g</strong> (1.6g/kg)<br>
+      🕐 Eating window: <strong style="color:#fff">12 PM – 8 PM</strong><br>
+      💧 Water: <strong style="color:var(--blue)">8 cups (2L)</strong><br>
+      👣 Steps: <strong style="color:var(--yellow)">7,000+</strong><br>
+      😴 Sleep: <strong style="color:#fff">7-8 hours</strong>
+    </div>
+  </div>`;
+
+  html += `<div class="card">
+    <div style="font-size:14px;font-weight:600;color:#fff;margin-bottom:10px">⚡ Rules</div>
+    <div style="font-size:13px;color:var(--text2);line-height:2.2">
+      1. <strong style="color:#fff">Protein first</strong> at every meal<br>
+      2. <strong style="color:#fff">No liquid calories</strong> — no juice, soda, sweet coffee<br>
+      3. <strong style="color:#fff">Eat at the table</strong>, not at your desk<br>
+      4. <strong style="color:#fff">Gym 3× / week</strong> — it's in your building!<br>
+      5. <strong style="color:#fff">Sleep 7+ hours</strong><br>
+      6. <strong style="color:#fff">2+ liters water</strong> daily<br>
+      7. <strong style="color:#fff">Weigh once/week only</strong><br>
+      8. <strong style="color:#fff">No eating after 8 PM</strong>
+    </div>
+  </div>`;
+
+  html += `</div>`; // end plan
+
+  // close content
+  html += `</div>`;
+
+  // ── NAV ──
+  const navItems = [
+    { id:"home", icon:"🏠", label:"Today" },
+    { id:"meals", icon:"🍽️", label:"Meals" },
+    { id:"gym", icon:"💪", label:"Gym" },
+    { id:"fast", icon:"⏱️", label:"Fast" },
+    { id:"progress", icon:"📈", label:"Progress" },
+    { id:"plan", icon:"📅", label:"Plan" },
+  ];
+  html += `<div class="nav">`;
+  navItems.forEach(n => {
+    html += `<div class="nav-item ${state.tab===n.id?'active':''}" onclick="switchTab('${n.id}')">
+      <div class="nav-icon">${n.icon}</div><div class="nav-label">${n.label}</div>
+    </div>`;
+  });
+  html += `</div>`;
+
+  document.getElementById("app").innerHTML = html;
+}
+
+function scheduleGrid(icons, labels, types) {
+  const days = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+  const colors = { gym:"var(--accent)", office:"var(--purple)", rest:"#333" };
+  let h = `<div class="sched">`;
+  days.forEach((d,i) => {
+    h += `<div class="sched-cell" style="border-bottom-color:${colors[types[i]]}">
+      <div class="sday">${d}</div><div class="sicon">${icons[i]}</div><div class="sinfo">${labels[i]}</div>
+    </div>`;
+  });
+  return h + `</div>`;
+}
+
+function ringCard(label, value, max, unit, color, pct) {
+  return `<div style="background:var(--card);border-radius:12px;padding:12px 8px;text-align:center;border:1px solid var(--card-border)">
+    <div style="position:relative;width:52px;height:52px;margin:0 auto 6px">
+      ${svgRing(pct, color, 52, 4)}
+      <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:${color}">${Math.round(pct)}%</div>
+    </div>
+    <div style="font-size:15px;font-weight:700;color:#fff">${value}</div>
+    <div style="font-size:9px;color:var(--text3);letter-spacing:0.5px;margin-top:1px">${label}</div>
+  </div>`;
+}
+
+// ══════════════════════════════════════════════════════════
+// ACTIONS
+// ══════════════════════════════════════════════════════════
+
+function switchTab(id) {
+  state.tab = id;
+  render();
+  window.scrollTo(0, 0);
+}
+
+function toggleMeal(section, index) {
+  const meal = MEALS[section][index];
+  updateDay(d => {
+    const exists = d.meals.findIndex(m => m.name === meal.name);
+    if (exists >= 0) {
+      return { ...d, meals: d.meals.filter((_,i) => i !== exists) };
+    } else {
+      return { ...d, meals: [...d.meals, { ...meal }] };
+    }
+  });
+}
+
+function addCustomMeal() {
+  if (!state.customName || !state.customCal) return;
+  updateDay(d => ({
+    ...d,
+    meals: [...d.meals, { name:state.customName, cal:parseInt(state.customCal), protein:parseInt(state.customPro)||0, icon:"🍴" }]
+  }));
+  state.customMealOpen = false;
+  state.customName = ""; state.customCal = ""; state.customPro = "";
+}
+
+function selectWorkout(w) {
+  updateDay(d => ({ ...d, workout: w, completedEx: [] }));
+}
+
+function toggleExercise(i) {
+  updateDay(d => {
+    const arr = d.completedEx || [];
+    return { ...d, completedEx: arr.includes(i) ? arr.filter(x => x !== i) : [...arr, i] };
+  });
+}
+
+function startFast() {
+  state.fastStart = Date.now();
+  saveFast(state.fastStart);
+  render();
+}
+
+function resetFast() {
+  state.fastStart = null;
+  saveFast(null);
+  render();
+}
+
+function addWeight() {
+  const v = parseFloat(state.weightInput);
+  if (!v || v < 30 || v > 200) return;
+  const entry = { date: todayStr(), weight: v };
+  state.weightLog = [...state.weightLog.filter(w => w.date !== todayStr()), entry].sort((a,b) => a.date.localeCompare(b.date));
+  saveWeightLog(state.weightLog);
+  state.weightInput = "";
+  render();
+}
+
+function resetAllData() {
+  if (confirm("Reset ALL data? This cannot be undone.")) {
+    localStorage.clear();
+    state.weightLog = [];
+    state.day = { meals:[], workout:null, completedEx:[], water:0, steps:0 };
+    state.fastStart = null;
+    state.weightInput = "";
+    render();
+  }
+}
+
+// ══════════════════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════════════════
+
+render();
+
+// tick fasting timer every second
+setInterval(() => {
+  if (state.fastStart && state.tab === 'fast') render();
+  if (state.fastStart && state.tab === 'home') render();
+}, 1000);
+
+// check if day changed
+setInterval(() => {
+  if (state.date !== todayStr()) {
+    state.date = todayStr();
+    state.day = loadDay(todayStr());
+    render();
+  }
+}, 60000);
+</script>
+</body>
+</html>
